@@ -2,7 +2,7 @@
 
 Portable OpenClaw desktop client with zero-dependency sandbox environment.
 
-## Features
+## ✨ Features
 
 - **Zero System Dependencies**: Runs completely isolated from your system environment
 - **Automatic Setup**: Downloads and configures Node.js automatically
@@ -10,7 +10,30 @@ Portable OpenClaw desktop client with zero-dependency sandbox environment.
 - **Integrated Web UI**: Built-in browser to access OpenClaw web interface
 - **Cross-platform**: Works on Windows, macOS, and Linux
 
-## Architecture Overview
+## 🚀 Quick Start
+
+### One-click Setup (Recommended)
+```bash
+# Clone and run setup script
+git clone https://github.com/zhan69820/openclaw-desktop.git
+cd openclaw-desktop
+./setup.sh
+```
+
+### Manual Setup
+```bash
+# Clone the repository
+git clone https://github.com/zhan69820/openclaw-desktop.git
+cd openclaw-desktop
+
+# Install dependencies
+npm install
+
+# Start the application
+npm start
+```
+
+## 🏗️ Architecture Overview
 
 This application uses a portable sandbox approach that doesn't rely on any system environment variables or pre-installed components. All operations are contained within Electron's private user data directory.
 
