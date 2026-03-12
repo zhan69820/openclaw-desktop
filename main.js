@@ -220,7 +220,7 @@ function startOpenClaw() {
     
     console.log('正在启动 OpenClaw...');
     
-    openclawProcess = spawn(`"${openclawBin}"`, ['--dev', 'dashboard', '--no-open'], {
+    openclawProcess = spawn(`"${openclawBin}"`, ['--dev', 'dashboard'], {
         cwd: openclawPath,
         env: customEnv,
         shell: true
