@@ -206,7 +206,7 @@ function startOpenClaw() {
     
     console.log('正在启动 OpenClaw...');
     
-    openclawProcess = spawn(`"${openclawBin}"`, ['--dev', 'gateway'], {
+    openclawProcess = spawn(`"${openclawBin}"`, ['--dev', 'dashboard', '--no-open'], {
         cwd: openclawPath,
         env: customEnv,
         shell: true
@@ -216,9 +216,17 @@ function startOpenClaw() {
         const output = data.toString();
         console.log('[OpenClaw]', output);
         
-        // 检测 Browser 控制服务
+        // 检测 Dashboard URL
+        const dashboardMatch = output.match(/Dashboard URL: http:\/\/127\.0\.0\.1:(\d+)/i);
         const browserMatch = output.match(/Browser control listening on http:\/\/127\.0\.0\.1:(\d+)/i);
-        if (browserMatch) {
+        
+        if (dashboardMatch) {
+            const port = dashboardMatch[1];
+            console.log(`Dashboard 运行在端口 ${port}`);
+            if (mainWindow) {
+                mainWindow.webContents.send('server-ready', { port });
+            }
+        } else if (browserMatch) {
             const port = browserMatch[1];
             console.log(`Browser 服务运行在端口 ${port}`);
             if (mainWindow) {

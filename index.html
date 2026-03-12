@@ -573,7 +573,7 @@
                 </div>
 
                 <div class="webview-container">
-                    <webview id="webview" src=""></webview>
+                    <webview id="webview" src="" allowpopups nodeintegration></webview>
                 </div>
             </div>
         </div>
@@ -669,7 +669,22 @@
                 launchBtn.classList.add('hidden');
                 shutdownBtn.classList.remove('hidden');
                 if (port) {
-                    webview.src = `http://127.0.0.1:${port}/`;
+                    const url = `http://127.0.0.1:${port}/`;
+                    console.log('加载 WebView:', url);
+                    webview.src = url;
+                    
+                    // 监听 webview 加载事件
+                    webview.addEventListener('did-start-loading', () => {
+                        console.log('WebView 开始加载');
+                    });
+                    
+                    webview.addEventListener('did-finish-load', () => {
+                        console.log('WebView 加载完成');
+                    });
+                    
+                    webview.addEventListener('did-fail-load', (event) => {
+                        console.error('WebView 加载失败:', event);
+                    });
                 }
             } else {
                 dot.style.background = 'rgba(255,255,255,0.5)';
