@@ -218,36 +218,36 @@ function startOpenClaw() {
     const customEnv = Object.assign({}, process.env);
     customEnv.PATH = `"${nodeBinPath}"${path.delimiter}${customEnv.PATH}`;
     
-    console.log('正在启动 OpenClaw...');
+    console.log('正在启动 OpenClaw Gateway...');
     
-    openclawProcess = spawn(`"${openclawBin}"`, ['--dev', 'dashboard'], {
+    // 用 gateway 命令启动常驻服务（dashboard 是一次性命令，会立即退出）
+    openclawProcess = spawn(`"${openclawBin}"`, ['--dev', 'gateway'], {
         cwd: openclawPath,
         env: customEnv,
         shell: true
     });
     
+    let serverNotified = false;
+    
     openclawProcess.stdout.on('data', (data) => {
         const output = data.toString();
         console.log('[OpenClaw]', output);
         
-        // 检测 Dashboard URL
-        const dashboardMatch = output.match(/Dashboard URL: http:\/\/127\.0\.0\.1:(\d+)/i);
-        const browserMatch = output.match(/Browser control listening on http:\/\/127\.0\.0\.1:(\d+)/i);
+        // 检测 gateway 监听就绪
+        const gatewayMatch = output.match(/listening on ws:\/\/127\.0\.0\.1:(\d+)/i);
         
-        if (dashboardMatch) {
-            const port = dashboardMatch[1];
+        if (gatewayMatch && !serverNotified) {
+            serverNotified = true;
+            const port = gatewayMatch[1];
             const token = getOpenClawToken();
-            console.log(`Dashboard 运行在端口 ${port}, token: ${token ? '已获取' : '未获取'}`);
-            if (mainWindow) {
-                mainWindow.webContents.send('server-ready', { port, token });
-            }
-        } else if (browserMatch) {
-            const port = browserMatch[1];
-            const token = getOpenClawToken();
-            console.log(`Browser 服务运行在端口 ${port}, token: ${token ? '已获取' : '未获取'}`);
-            if (mainWindow) {
-                mainWindow.webContents.send('server-ready', { port, token });
-            }
+            console.log(`Gateway 就绪，端口: ${port}, token: ${token ? '已获取' : '未获取'}`);
+            
+            // 延迟 2 秒通知前端，确保 HTTP 服务完全就绪
+            setTimeout(() => {
+                if (mainWindow) {
+                    mainWindow.webContents.send('server-ready', { port, token });
+                }
+            }, 2000);
         }
         
         if (mainWindow) {
@@ -264,8 +264,9 @@ function startOpenClaw() {
     });
     
     openclawProcess.on('close', (code) => {
-        console.log('OpenClaw 已停止');
+        console.log('OpenClaw 已停止, 退出码:', code);
         openclawProcess = null;
+        serverNotified = false;
         if (mainWindow) {
             mainWindow.webContents.send('server-stopped');
         }
@@ -378,6 +379,11 @@ ipcMain.handle('start-server', async () => {
     try {
         if (!isOpenClawInstalled()) {
             return { success: false, error: 'OpenClaw 未安装，请先安装环境' };
+        }
+        
+        // 防止重复启动
+        if (openclawProcess) {
+            return { success: false, error: 'OpenClaw 已在运行中' };
         }
         
         startOpenClaw();
