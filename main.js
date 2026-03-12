@@ -416,3 +416,108 @@ ipcMain.handle('get-status', async () => {
         userDataPath: userDataPath
     };
 });
+
+// 配置模型
+ipcMain.handle('config-model', async (event, { provider, apiKey, model }) => {
+    try {
+        const { osType } = getSystemInfo();
+        const nodeBinPath = osType === 'win' ? nodePath : path.join(nodePath, 'bin');
+        const openclawBin = osType === 'win' ?
+            path.join(openclawPath, 'node_modules', '.bin', 'openclaw.cmd') :
+            path.join(openclawPath, 'node_modules', '.bin', 'openclaw');
+        
+        const customEnv = Object.assign({}, process.env);
+        customEnv.PATH = `"${nodeBinPath}"${path.delimiter}${customEnv.PATH}`;
+        
+        // 设置模型
+        await new Promise((resolve, reject) => {
+            const proc = spawn(`"${openclawBin}"`, ['--dev', 'config', 'set', 'agent.model', model], {
+                cwd: openclawPath,
+                env: customEnv,
+                shell: true
+            });
+            proc.on('close', (code) => code === 0 ? resolve() : reject(new Error('设置模型失败')));
+        });
+        
+        // 设置 API Key
+        await new Promise((resolve, reject) => {
+            const proc = spawn(`"${openclawBin}"`, ['--dev', 'models', 'auth', 'paste-token'], {
+                cwd: openclawPath,
+                env: { ...customEnv, OPENCLAW_TOKEN: apiKey },
+                shell: true,
+                stdio: ['pipe', 'pipe', 'pipe']
+            });
+            proc.stdin.write(apiKey + '\n');
+            proc.stdin.end();
+            proc.on('close', (code) => code === 0 ? resolve() : reject(new Error('设置 API Key 失败')));
+        });
+        
+        return { success: true };
+    } catch (error) {
+        console.error('配置模型失败:', error);
+        return { success: false, error: error.message };
+    }
+});
+
+// 配置渠道
+ipcMain.handle('config-channel', async (event, { channel, token }) => {
+    try {
+        const { osType } = getSystemInfo();
+        const nodeBinPath = osType === 'win' ? nodePath : path.join(nodePath, 'bin');
+        const openclawBin = osType === 'win' ?
+            path.join(openclawPath, 'node_modules', '.bin', 'openclaw.cmd') :
+            path.join(openclawPath, 'node_modules', '.bin', 'openclaw');
+        
+        const customEnv = Object.assign({}, process.env);
+        customEnv.PATH = `"${nodeBinPath}"${path.delimiter}${customEnv.PATH}`;
+        
+        await new Promise((resolve, reject) => {
+            const proc = spawn(`"${openclawBin}"`, ['--dev', 'channels', 'add', '--channel', channel, '--token', token], {
+                cwd: openclawPath,
+                env: customEnv,
+                shell: true
+            });
+            proc.on('close', (code) => code === 0 ? resolve() : reject(new Error('配置渠道失败')));
+        });
+        
+        return { success: true };
+    } catch (error) {
+        console.error('配置渠道失败:', error);
+        return { success: false, error: error.message };
+    }
+});
+
+// 重置配置
+ipcMain.handle('reset-config', async () => {
+    try {
+        const configDir = path.join(require('os').homedir(), '.openclaw-dev');
+        if (fs.existsSync(configDir)) {
+            fs.rmSync(configDir, { recursive: true });
+        }
+        return { success: true };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+});
+
+// 卸载
+ipcMain.handle('uninstall', async () => {
+    try {
+        stopOpenClaw();
+        
+        // 删除配置目录
+        const configDir = path.join(require('os').homedir(), '.openclaw-dev');
+        if (fs.existsSync(configDir)) {
+            fs.rmSync(configDir, { recursive: true });
+        }
+        
+        // 删除安装目录
+        if (fs.existsSync(openclawPath)) {
+            fs.rmSync(openclawPath, { recursive: true });
+        }
+        
+        return { success: true };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+});
