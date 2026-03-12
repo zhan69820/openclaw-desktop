@@ -193,6 +193,20 @@ async function installOpenClaw() {
     });
 }
 
+// 读取 OpenClaw token
+function getOpenClawToken() {
+    try {
+        const configPath = path.join(require('os').homedir(), '.openclaw-dev', 'openclaw.json');
+        if (fs.existsSync(configPath)) {
+            const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+            return config.gateway?.auth?.token || null;
+        }
+    } catch (error) {
+        console.error('读取 token 失败:', error);
+    }
+    return null;
+}
+
 // 启动 OpenClaw
 function startOpenClaw() {
     const { osType } = getSystemInfo();
@@ -222,15 +236,17 @@ function startOpenClaw() {
         
         if (dashboardMatch) {
             const port = dashboardMatch[1];
-            console.log(`Dashboard 运行在端口 ${port}`);
+            const token = getOpenClawToken();
+            console.log(`Dashboard 运行在端口 ${port}, token: ${token ? '已获取' : '未获取'}`);
             if (mainWindow) {
-                mainWindow.webContents.send('server-ready', { port });
+                mainWindow.webContents.send('server-ready', { port, token });
             }
         } else if (browserMatch) {
             const port = browserMatch[1];
-            console.log(`Browser 服务运行在端口 ${port}`);
+            const token = getOpenClawToken();
+            console.log(`Browser 服务运行在端口 ${port}, token: ${token ? '已获取' : '未获取'}`);
             if (mainWindow) {
-                mainWindow.webContents.send('server-ready', { port });
+                mainWindow.webContents.send('server-ready', { port, token });
             }
         }
         

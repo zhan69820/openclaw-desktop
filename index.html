@@ -654,7 +654,7 @@
         }
 
         // 更新服务器状态
-        function updateServerStatus(running, port = null) {
+        function updateServerStatus(running, port = null, token = null) {
             serverRunning = running;
             const dot = document.getElementById('serverStatusDot');
             const text = document.getElementById('serverStatusText');
@@ -669,7 +669,10 @@
                 launchBtn.classList.add('hidden');
                 shutdownBtn.classList.remove('hidden');
                 if (port) {
-                    const url = `http://127.0.0.1:${port}/`;
+                    // 使用 token 构建 URL
+                    const url = token ? 
+                        `http://127.0.0.1:${port}/?token=${token}` : 
+                        `http://127.0.0.1:${port}/`;
                     console.log('加载 WebView:', url);
                     webview.src = url;
                     
@@ -768,8 +771,8 @@
         });
 
         ipcRenderer.on('server-ready', (event, data) => {
-            updateServerStatus(true, data.port);
-            addLog(`\n[服务] OpenClaw 已启动，端口: ${data.port}\n`);
+            updateServerStatus(true, data.port, data.token);
+            addLog(`\n[服务] OpenClaw 已启动，端口: ${data.port}${data.token ? ', 已获取 token' : ''}\n`);
         });
 
         ipcRenderer.on('server-stopped', () => {
