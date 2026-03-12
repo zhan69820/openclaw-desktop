@@ -5,12 +5,11 @@ const { spawn } = require('child_process');
 const axios = require('axios');
 const extract = require('extract-zip');
 
-// 全局变量存储 OpenClaw 进程
+// 全局变量
 let openclawProcess = null;
 let mainWindow = null;
-let setupInProgress = false;
 
-// 获取用户数据目录
+// 路径配置
 const userDataPath = app.getPath('userData');
 const envPath = path.join(userDataPath, 'env');
 const nodePath = path.join(envPath, 'node');
@@ -18,20 +17,32 @@ const appPath = path.join(userDataPath, 'app');
 const openclawPath = path.join(appPath, 'openclaw');
 const logsPath = path.join(userDataPath, 'logs');
 
-console.log('用户数据目录:', userDataPath);
+// 检测是否已安装 OpenClaw
+function isOpenClawInstalled() {
+    const openclawModulePath = path.join(openclawPath, 'node_modules', 'openclaw');
+    const packageJsonPath = path.join(openclawPath, 'package.json');
+    return fs.existsSync(openclawModulePath) && fs.existsSync(packageJsonPath);
+}
 
-// 创建目录结构
+// 检测是否已安装私有 Node.js
+function isPrivateNodeInstalled() {
+    const { osType } = getSystemInfo();
+    const nodeExecutable = osType === 'win' ? 
+        path.join(nodePath, 'node.exe') : 
+        path.join(nodePath, 'bin', 'node');
+    return fs.existsSync(nodeExecutable);
+}
+
+// 创建目录
 function createDirectories() {
-    const dirs = [envPath, nodePath, appPath, openclawPath, logsPath];
-    dirs.forEach(dir => {
+    [envPath, nodePath, appPath, openclawPath, logsPath].forEach(dir => {
         if (!fs.existsSync(dir)) {
             fs.mkdirSync(dir, { recursive: true });
-            console.log(`创建目录: ${dir}`);
         }
     });
 }
 
-// 检测操作系统和架构
+// 获取系统信息
 function getSystemInfo() {
     const platform = process.platform;
     const arch = process.arch;
@@ -60,7 +71,7 @@ function getSystemInfo() {
 
 // 获取 Node.js 下载 URL
 function getNodeDownloadUrl(osType, osArch) {
-    const version = '20.11.0'; // 使用 LTS 版本
+    const version = '20.11.0';
     let filename;
     
     switch (osType) {
@@ -78,26 +89,14 @@ function getNodeDownloadUrl(osType, osArch) {
     return `https://nodejs.org/dist/v${version}/${filename}`;
 }
 
-// 下载并解压 Node.js
-async function setupPrivateNodeJS() {
+// 安装私有 Node.js
+async function installPrivateNodeJS() {
     const { osType, osArch } = getSystemInfo();
-    const nodeExecutable = osType === 'win' ? 
-        path.join(nodePath, 'node.exe') : 
-        path.join(nodePath, 'bin', 'node');
     
-    // 检查是否已存在
-    if (fs.existsSync(nodeExecutable)) {
-        console.log('私有 Node.js 已存在');
-        return true;
-    }
-    
-    console.log(`正在为 ${osType}-${osArch} 配置私有 Node.js`);
+    console.log(`正在安装 Node.js (${osType}-${osArch})...`);
     
     try {
-        // 下载 Node.js
         const downloadUrl = getNodeDownloadUrl(osType, osArch);
-        console.log(`下载地址: ${downloadUrl}`);
-        
         const response = await axios({
             method: 'GET',
             url: downloadUrl,
@@ -105,7 +104,6 @@ async function setupPrivateNodeJS() {
         });
         
         const tempFile = path.join(envPath, `node-temp.${osType === 'win' ? 'zip' : 'tar.gz'}`);
-        
         const writer = fs.createWriteStream(tempFile);
         response.data.pipe(writer);
         
@@ -114,39 +112,29 @@ async function setupPrivateNodeJS() {
             writer.on('error', reject);
         });
         
-        console.log('下载完成，正在解压...');
-        
-        // 解压文件
+        // 解压
         if (osType === 'win') {
             await extract(tempFile, { dir: nodePath });
         } else {
             const tar = require('tar');
-            await tar.extract({
-                file: tempFile,
-                cwd: envPath
-            });
+            await tar.extract({ file: tempFile, cwd: envPath });
             
-            // 移动解压后的文件到正确位置
             const extractedDir = path.join(envPath, fs.readdirSync(envPath).find(f => f.startsWith('node-v')));
             if (extractedDir && fs.existsSync(extractedDir)) {
                 const files = fs.readdirSync(extractedDir);
                 files.forEach(file => {
-                    const src = path.join(extractedDir, file);
-                    const dest = path.join(nodePath, file);
-                    fs.renameSync(src, dest);
+                    fs.renameSync(path.join(extractedDir, file), path.join(nodePath, file));
                 });
                 fs.rmdirSync(extractedDir);
             }
         }
         
-        // 清理临时文件
         fs.unlinkSync(tempFile);
-        
-        console.log('私有 Node.js 配置完成');
+        console.log('Node.js 安装完成');
         return true;
     } catch (error) {
-        console.error('配置私有 Node.js 失败:', error);
-        return false;
+        console.error('Node.js 安装失败:', error);
+        throw error;
     }
 }
 
@@ -164,7 +152,6 @@ async function installOpenClaw() {
         fs.writeFileSync(packageJsonPath, JSON.stringify({}, null, 2));
     }
     
-    // 设置环境变量
     const customEnv = Object.assign({}, process.env);
     customEnv.PATH = `"${nodeBinPath}"${path.delimiter}${customEnv.PATH}`;
     
@@ -179,15 +166,15 @@ async function installOpenClaw() {
         
         installProcess.stdout.on('data', (data) => {
             const output = data.toString();
-            console.log('[NPM INSTALL]', output);
+            console.log('[安装]', output);
             if (mainWindow) {
-                mainWindow.webContents.send('install-progress', output);
+                mainWindow.webContents.send('install-log', output);
             }
         });
         
         installProcess.stderr.on('data', (data) => {
             const error = data.toString();
-            console.error('[NPM INSTALL ERROR]', error);
+            console.error('[安装错误]', error);
             if (mainWindow) {
                 mainWindow.webContents.send('install-error', error);
             }
@@ -198,15 +185,11 @@ async function installOpenClaw() {
                 console.log('OpenClaw 安装完成');
                 resolve(true);
             } else {
-                console.error('OpenClaw 安装失败，退出码:', code);
                 reject(new Error(`安装失败，退出码 ${code}`));
             }
         });
         
-        installProcess.on('error', (error) => {
-            console.error('启动 npm install 失败:', error);
-            reject(error);
-        });
+        installProcess.on('error', reject);
     });
 }
 
@@ -218,7 +201,6 @@ function startOpenClaw() {
         path.join(openclawPath, 'node_modules', '.bin', 'openclaw.cmd') :
         path.join(openclawPath, 'node_modules', '.bin', 'openclaw');
     
-    // 设置环境变量
     const customEnv = Object.assign({}, process.env);
     customEnv.PATH = `"${nodeBinPath}"${path.delimiter}${customEnv.PATH}`;
     
@@ -232,51 +214,36 @@ function startOpenClaw() {
     
     openclawProcess.stdout.on('data', (data) => {
         const output = data.toString();
-        console.log('[OPENCLAW]', output);
+        console.log('[OpenClaw]', output);
         
-        // 监听端口信息 - 优先检测 browser 控制端口
-        const browserPortMatch = output.match(/Browser control listening on http:\/\/127\.0\.0\.1:(\d+)\//i);
-        const gatewayPortMatch = output.match(/listening on ws:\/\/127\.0\.0\.1:(\d+)/i);
-        
-        if (browserPortMatch) {
-            const port = browserPortMatch[1];
-            console.log(`检测到 OpenClaw Browser 控制服务运行在端口 ${port}`);
+        // 检测 Browser 控制服务
+        const browserMatch = output.match(/Browser control listening on http:\/\/127\.0\.0\.1:(\d+)/i);
+        if (browserMatch) {
+            const port = browserMatch[1];
+            console.log(`Browser 服务运行在端口 ${port}`);
             if (mainWindow) {
-                mainWindow.webContents.send('server-ready', { port, type: 'browser' });
-            }
-        } else if (gatewayPortMatch) {
-            const port = gatewayPortMatch[1];
-            console.log(`检测到 OpenClaw Gateway 服务运行在端口 ${port}`);
-            if (mainWindow) {
-                mainWindow.webContents.send('server-ready', { port, type: 'gateway' });
+                mainWindow.webContents.send('server-ready', { port });
             }
         }
         
         if (mainWindow) {
-            mainWindow.webContents.send('openclaw-output', output);
+            mainWindow.webContents.send('server-log', output);
         }
     });
     
     openclawProcess.stderr.on('data', (data) => {
         const error = data.toString();
-        console.error('[OPENCLAW ERROR]', error);
+        console.error('[OpenClaw 错误]', error);
         if (mainWindow) {
-            mainWindow.webContents.send('openclaw-error', error);
+            mainWindow.webContents.send('server-error', error);
         }
     });
     
     openclawProcess.on('close', (code) => {
-        console.log('OpenClaw 进程已关闭，退出码:', code);
+        console.log('OpenClaw 已停止');
         openclawProcess = null;
         if (mainWindow) {
             mainWindow.webContents.send('server-stopped');
-        }
-    });
-    
-    openclawProcess.on('error', (error) => {
-        console.error('启动 OpenClaw 失败:', error);
-        if (mainWindow) {
-            mainWindow.webContents.send('server-error', error.message);
         }
     });
 }
@@ -284,50 +251,12 @@ function startOpenClaw() {
 // 停止 OpenClaw
 function stopOpenClaw() {
     if (openclawProcess) {
-        console.log('正在停止 OpenClaw 进程...');
         openclawProcess.kill();
         openclawProcess = null;
     }
 }
 
-// 执行完整的安装流程
-async function runSetup() {
-    if (setupInProgress) return;
-    setupInProgress = true;
-    
-    try {
-        createDirectories();
-        
-        if (mainWindow) {
-            mainWindow.webContents.send('setup-started');
-        }
-        
-        const nodeSetupSuccess = await setupPrivateNodeJS();
-        if (!nodeSetupSuccess) {
-            throw new Error('配置私有 Node.js 失败');
-        }
-        
-        if (mainWindow) {
-            mainWindow.webContents.send('node-setup-complete');
-        }
-        
-        await installOpenClaw();
-        
-        if (mainWindow) {
-            mainWindow.webContents.send('install-complete');
-        }
-        
-    } catch (error) {
-        console.error('安装失败:', error);
-        if (mainWindow) {
-            mainWindow.webContents.send('setup-error', error.message);
-        }
-    } finally {
-        setupInProgress = false;
-    }
-}
-
-// 创建主窗口
+// 创建窗口
 function createWindow() {
     mainWindow = new BrowserWindow({
         width: 1200,
@@ -340,17 +269,28 @@ function createWindow() {
             webviewTag: true
         },
         titleBarStyle: 'hiddenInset',
-        show: false
+        show: false,
+        backgroundColor: '#f8fafc'
     });
     
     mainWindow.loadFile('index.html');
     
-    // 窗口准备好后显示
     mainWindow.once('ready-to-show', () => {
         mainWindow.show();
+        
+        // 检查安装状态并通知前端
+        const nodeInstalled = isPrivateNodeInstalled();
+        const openclawInstalled = isOpenClawInstalled();
+        
+        console.log('安装状态:', { nodeInstalled, openclawInstalled });
+        
+        mainWindow.webContents.send('check-status', {
+            nodeInstalled,
+            openclawInstalled,
+            fullyInstalled: nodeInstalled && openclawInstalled
+        });
     });
     
-    // 开发模式下打开开发者工具
     if (process.argv.includes('--dev')) {
         mainWindow.webContents.openDevTools();
     }
@@ -383,12 +323,37 @@ app.on('before-quit', () => {
 });
 
 // IPC 处理
-ipcMain.on('start-setup', () => {
-    runSetup();
+ipcMain.handle('install-environment', async () => {
+    try {
+        createDirectories();
+        
+        // 安装 Node.js
+        if (!isPrivateNodeInstalled()) {
+            mainWindow.webContents.send('install-status', { step: 'nodejs', status: 'installing' });
+            await installPrivateNodeJS();
+            mainWindow.webContents.send('install-status', { step: 'nodejs', status: 'completed' });
+        }
+        
+        // 安装 OpenClaw
+        if (!isOpenClawInstalled()) {
+            mainWindow.webContents.send('install-status', { step: 'openclaw', status: 'installing' });
+            await installOpenClaw();
+            mainWindow.webContents.send('install-status', { step: 'openclaw', status: 'completed' });
+        }
+        
+        return { success: true };
+    } catch (error) {
+        console.error('安装失败:', error);
+        return { success: false, error: error.message };
+    }
 });
 
 ipcMain.handle('start-server', async () => {
     try {
+        if (!isOpenClawInstalled()) {
+            return { success: false, error: 'OpenClaw 未安装，请先安装环境' };
+        }
+        
         startOpenClaw();
         return { success: true };
     } catch (error) {
@@ -408,7 +373,8 @@ ipcMain.handle('stop-server', async () => {
 ipcMain.handle('get-status', async () => {
     return {
         serverRunning: openclawProcess !== null,
-        userDataPath: userDataPath,
-        setupComplete: fs.existsSync(path.join(openclawPath, 'node_modules', 'openclaw'))
+        nodeInstalled: isPrivateNodeInstalled(),
+        openclawInstalled: isOpenClawInstalled(),
+        userDataPath: userDataPath
     };
 });
