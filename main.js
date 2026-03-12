@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { spawn } = require('child_process');
@@ -242,10 +242,16 @@ function startOpenClaw() {
             const token = getOpenClawToken();
             console.log(`Gateway 就绪，端口: ${port}, token: ${token ? '已获取' : '未获取'}`);
             
-            // 延迟 2 秒通知前端，确保 HTTP 服务完全就绪
+            // 延迟 2 秒后打开浏览器
             setTimeout(() => {
+                const url = token ? 
+                    `http://127.0.0.1:${port}/#token=${token}` : 
+                    `http://127.0.0.1:${port}/`;
+                console.log('正在打开浏览器:', url);
+                shell.openExternal(url);
+                
                 if (mainWindow) {
-                    mainWindow.webContents.send('server-ready', { port, token });
+                    mainWindow.webContents.send('server-ready', { port });
                 }
             }, 2000);
         }

@@ -572,8 +572,14 @@
                     </button>
                 </div>
 
-                <div class="webview-container">
-                    <webview id="webview" src="" allowpopups nodeintegration></webview>
+                <div class="info-panel" style="padding: 40px; text-align: center; background: var(--bg); border-radius: 0 0 16px 16px;">
+                    <div style="font-size: 64px; margin-bottom: 20px;">🌐</div>
+                    <h3 style="font-size: 20px; margin-bottom: 12px; color: var(--text);">服务状态</h3>
+                    <p id="serviceInfo" style="color: var(--text-secondary); font-size: 14px; line-height: 1.6;">
+                        点击"启动服务"按钮，将在浏览器中打开 OpenClaw 控制面板
+                    </p>
+                    <div id="serviceUrl" style="margin-top: 20px; padding: 12px 16px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; font-family: monospace; font-size: 13px; color: var(--text-secondary); display: none;">
+                    </div>
                 </div>
             </div>
         </div>
@@ -654,13 +660,14 @@
         }
 
         // 更新服务器状态
-        function updateServerStatus(running, port = null, token = null) {
+        function updateServerStatus(running, port = null) {
             serverRunning = running;
             const dot = document.getElementById('serverStatusDot');
             const text = document.getElementById('serverStatusText');
             const launchBtn = document.getElementById('launchBtn');
             const shutdownBtn = document.getElementById('shutdownBtn');
-            const webview = document.getElementById('webview');
+            const serviceInfo = document.getElementById('serviceInfo');
+            const serviceUrl = document.getElementById('serviceUrl');
 
             if (running) {
                 dot.style.background = '#4ade80';
@@ -668,26 +675,11 @@
                 text.textContent = port ? `运行中 (端口 ${port})` : '运行中';
                 launchBtn.classList.add('hidden');
                 shutdownBtn.classList.remove('hidden');
+                
+                serviceInfo.innerHTML = '✅ OpenClaw 服务已启动<br>已在浏览器中打开控制面板，请在浏览器中操作';
                 if (port) {
-                    // 使用 token 构建 URL (OpenClaw 使用 hash 方式传递 token)
-                    const url = token ? 
-                        `http://127.0.0.1:${port}/#token=${token}` : 
-                        `http://127.0.0.1:${port}/`;
-                    console.log('加载 WebView:', url);
-                    webview.src = url;
-                    
-                    // 监听 webview 加载事件
-                    webview.addEventListener('did-start-loading', () => {
-                        console.log('WebView 开始加载');
-                    });
-                    
-                    webview.addEventListener('did-finish-load', () => {
-                        console.log('WebView 加载完成');
-                    });
-                    
-                    webview.addEventListener('did-fail-load', (event) => {
-                        console.error('WebView 加载失败:', event);
-                    });
+                    serviceUrl.textContent = `http://127.0.0.1:${port}/`;
+                    serviceUrl.style.display = 'inline-block';
                 }
             } else {
                 dot.style.background = 'rgba(255,255,255,0.5)';
@@ -695,7 +687,9 @@
                 text.textContent = '已停止';
                 launchBtn.classList.remove('hidden');
                 shutdownBtn.classList.add('hidden');
-                webview.src = '';
+                
+                serviceInfo.textContent = '点击"启动服务"按钮，将在浏览器中打开 OpenClaw 控制面板';
+                serviceUrl.style.display = 'none';
             }
         }
 
@@ -778,8 +772,8 @@
         });
 
         ipcRenderer.on('server-ready', (event, data) => {
-            updateServerStatus(true, data.port, data.token);
-            addLog(`\n[服务] OpenClaw 已启动，端口: ${data.port}${data.token ? ', 已获取 token' : ''}\n`);
+            updateServerStatus(true, data.port);
+            addLog(`\n[服务] OpenClaw 已启动，端口: ${data.port}，已在浏览器中打开\n`);
         });
 
         ipcRenderer.on('server-stopped', () => {
