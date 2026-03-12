@@ -828,8 +828,25 @@
         });
         
         ipcRenderer.on('server-ready', (event, data) => {
-            addToTerminal(`\n[SERVER] OpenClaw 服务已启动，端口: ${data.port}\n`);
-            updateControlStatus(true, data.port);
+            const { port, type } = data;
+            let displayPort = port;
+            let serviceType = '';
+            
+            if (type === 'browser') {
+                serviceType = '浏览器控制服务';
+                // Browser 控制服务通常需要特定的认证参数
+                addToTerminal(`\n[SERVER] OpenClaw ${serviceType} 已启动，端口: ${port}\n`);
+                updateControlStatus(true, port);
+            } else if (type === 'gateway') {
+                serviceType = '网关服务';
+                displayPort = parseInt(port) + 2; // Browser 服务通常是 Gateway 端口 + 2
+                addToTerminal(`\n[SERVER] OpenClaw ${serviceType} 已启动，端口: ${port}\n`);
+                addToTerminal(`[SERVER] 浏览器控制服务可能运行在端口: ${displayPort}\n`);
+                updateControlStatus(true, displayPort);
+            } else {
+                addToTerminal(`\n[SERVER] OpenClaw 服务已启动，端口: ${port}\n`);
+                updateControlStatus(true, port);
+            }
         });
         
         ipcRenderer.on('server-stopped', () => {

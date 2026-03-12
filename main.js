@@ -224,7 +224,7 @@ function startOpenClaw() {
     
     console.log('正在启动 OpenClaw...');
     
-    openclawProcess = spawn(`"${openclawBin}"`, ['dashboard'], {
+    openclawProcess = spawn(`"${openclawBin}"`, ['--dev', 'gateway'], {
         cwd: openclawPath,
         env: customEnv,
         shell: true
@@ -234,14 +234,21 @@ function startOpenClaw() {
         const output = data.toString();
         console.log('[OPENCLAW]', output);
         
-        // 监听端口信息
-        const portMatch = output.match(/Dashboard URL: http:\/\/127\.0\.0\.1:(\d+)\//i) ||
-                         output.match(/(?:Server is running on port|localhost:)(\d+)/i);
-        if (portMatch) {
-            const port = portMatch[1];
-            console.log(`检测到 OpenClaw 服务运行在端口 ${port}`);
+        // 监听端口信息 - 优先检测 browser 控制端口
+        const browserPortMatch = output.match(/Browser control listening on http:\/\/127\.0\.0\.1:(\d+)\//i);
+        const gatewayPortMatch = output.match(/listening on ws:\/\/127\.0\.0\.1:(\d+)/i);
+        
+        if (browserPortMatch) {
+            const port = browserPortMatch[1];
+            console.log(`检测到 OpenClaw Browser 控制服务运行在端口 ${port}`);
             if (mainWindow) {
-                mainWindow.webContents.send('server-ready', { port });
+                mainWindow.webContents.send('server-ready', { port, type: 'browser' });
+            }
+        } else if (gatewayPortMatch) {
+            const port = gatewayPortMatch[1];
+            console.log(`检测到 OpenClaw Gateway 服务运行在端口 ${port}`);
+            if (mainWindow) {
+                mainWindow.webContents.send('server-ready', { port, type: 'gateway' });
             }
         }
         
