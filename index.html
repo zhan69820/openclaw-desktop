@@ -1,206 +1,635 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <title>OpenClaw Desktop</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OpenClaw 桌面版 - 便携式 AI 助手</title>
     <style>
+        :root {
+            /* 明亮模式默认 */
+            --bg-primary: #f8fafc;
+            --bg-secondary: #ffffff;
+            --bg-tertiary: #f1f5f9;
+            --text-primary: #1e293b;
+            --text-secondary: #64748b;
+            --text-muted: #94a3b8;
+            --accent-primary: #3b82f6;
+            --accent-secondary: #1d4ed8;
+            --accent-gradient: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+            --border-color: #e2e8f0;
+            --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+            --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+            --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+            --success: #10b981;
+            --warning: #f59e0b;
+            --error: #ef4444;
+            --terminal-bg: #0f172a;
+            --terminal-text: #e2e8f0;
+        }
+
+        [data-theme="dark"] {
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --bg-tertiary: #334155;
+            --text-primary: #f8fafc;
+            --text-secondary: #cbd5e1;
+            --text-muted: #94a3b8;
+            --accent-primary: #60a5fa;
+            --accent-secondary: #3b82f6;
+            --accent-gradient: linear-gradient(135deg, #60a5fa 0%, #a78bfa 100%);
+            --border-color: #334155;
+            --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.3);
+            --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.4);
+            --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.4);
+            --terminal-bg: #020617;
+            --terminal-text: #e2e8f0;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            margin: 0;
-            padding: 20px;
-            background-color: #f5f5f5;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            transition: background-color 0.3s ease, color 0.3s ease;
         }
-        
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            overflow: hidden;
-        }
-        
-        .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 20px;
-            text-align: center;
-        }
-        
-        .header h1 {
-            margin: 0;
-            font-size: 24px;
-        }
-        
-        .status-bar {
-            padding: 15px 20px;
-            background: #f8f9fa;
-            border-bottom: 1px solid #eee;
+
+        /* 主题切换按钮 */
+        .theme-toggle {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 50%;
+            width: 44px;
+            height: 44px;
             display: flex;
-            justify-content: space-between;
             align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: var(--shadow-md);
+            transition: all 0.3s ease;
+            z-index: 1000;
         }
-        
-        .controls {
-            padding: 20px;
+
+        .theme-toggle:hover {
+            transform: scale(1.1);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .theme-toggle svg {
+            width: 24px;
+            height: 24px;
+            fill: var(--text-primary);
+        }
+
+        /* 主容器 */
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        /* 欢迎页面 */
+        .welcome-page {
+            text-align: center;
+            padding: 60px 20px;
+        }
+
+        .logo {
+            width: 120px;
+            height: 120px;
+            background: var(--accent-gradient);
+            border-radius: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 40px;
+            box-shadow: var(--shadow-lg);
+            animation: float 3s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .logo svg {
+            width: 60px;
+            height: 60px;
+            fill: white;
+        }
+
+        .welcome-title {
+            font-size: 42px;
+            font-weight: 700;
+            margin-bottom: 16px;
+            background: var(--accent-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .welcome-subtitle {
+            font-size: 20px;
+            color: var(--text-secondary);
+            margin-bottom: 40px;
+        }
+
+        /* 功能卡片 */
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 24px;
+            margin: 40px 0;
+        }
+
+        .feature-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 28px;
+            text-align: left;
+            transition: all 0.3s ease;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .feature-card:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .feature-icon {
+            width: 48px;
+            height: 48px;
+            background: var(--accent-gradient);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 16px;
+        }
+
+        .feature-icon svg {
+            width: 24px;
+            height: 24px;
+            fill: white;
+        }
+
+        .feature-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: var(--text-primary);
+        }
+
+        .feature-desc {
+            font-size: 14px;
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+
+        /* 按钮样式 */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 14px 32px;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+        }
+
+        .btn-primary {
+            background: var(--accent-gradient);
+            color: white;
+            box-shadow: 0 4px 14px 0 rgba(59, 130, 246, 0.39);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px 0 rgba(59, 130, 246, 0.5);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-secondary {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+        }
+
+        .btn-secondary:hover {
+            background: var(--border-color);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            box-shadow: 0 4px 14px 0 rgba(239, 68, 68, 0.39);
+        }
+
+        /* 安装页面 */
+        .install-page {
+            display: none;
+        }
+
+        .install-page.active {
+            display: block;
+        }
+
+        .page-header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .page-title {
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 12px;
+        }
+
+        .page-desc {
+            color: var(--text-secondary);
+            font-size: 16px;
+        }
+
+        /* 进度卡片 */
+        .progress-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 32px;
+            margin-bottom: 24px;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .progress-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+
+        .progress-title {
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .progress-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--text-muted);
+        }
+
+        .status-dot.active {
+            background: var(--accent-primary);
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.success {
+            background: var(--success);
+        }
+
+        .status-dot.error {
+            background: var(--error);
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* 进度条 */
+        .progress-bar-container {
+            background: var(--bg-tertiary);
+            border-radius: 8px;
+            height: 8px;
+            overflow: hidden;
+            margin-bottom: 12px;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: var(--accent-gradient);
+            border-radius: 8px;
+            transition: width 0.5s ease;
+            width: 0%;
+        }
+
+        .progress-text {
+            font-size: 14px;
+            color: var(--text-secondary);
             text-align: center;
         }
-        
-        .btn {
-            background: #667eea;
-            color: white;
-            border: none;
-            padding: 12px 24px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 16px;
-            margin: 0 10px;
-            transition: background 0.2s;
+
+        /* 终端 */
+        .terminal-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: var(--shadow-sm);
         }
-        
-        .btn:hover {
-            background: #5a6fd8;
+
+        .terminal-header {
+            background: var(--bg-tertiary);
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border-bottom: 1px solid var(--border-color);
         }
-        
-        .btn:disabled {
-            background: #ccc;
-            cursor: not-allowed;
+
+        .terminal-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
         }
-        
-        .btn-stop {
-            background: #e74c3c;
+
+        .terminal-dot.red { background: #ff5f56; }
+        .terminal-dot.yellow { background: #ffbd2e; }
+        .terminal-dot.green { background: #27c93f; }
+
+        .terminal-title {
+            margin-left: 8px;
+            font-size: 13px;
+            color: var(--text-secondary);
         }
-        
-        .btn-stop:hover {
-            background: #c0392b;
-        }
-        
+
         .terminal {
-            background: #1e1e1e;
-            color: #d4d4d4;
+            background: var(--terminal-bg);
+            color: var(--terminal-text);
             padding: 20px;
-            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-            font-size: 14px;
-            line-height: 1.4;
-            height: 400px;
+            font-family: 'JetBrains Mono', 'Fira Code', 'Monaco', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+            height: 300px;
             overflow-y: auto;
-            margin: 20px;
-            border-radius: 4px;
             white-space: pre-wrap;
             word-break: break-word;
         }
-        
-        .web-container {
-            height: 500px;
-            margin: 20px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
+
+        /* 控制面板 */
+        .control-panel {
+            display: none;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
             overflow: hidden;
+            box-shadow: var(--shadow-md);
         }
-        
+
+        .control-panel.active {
+            display: block;
+        }
+
+        .control-header {
+            background: var(--accent-gradient);
+            color: white;
+            padding: 20px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .control-title {
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .control-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+        }
+
+        .control-status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.5);
+        }
+
+        .control-status-dot.running {
+            background: #4ade80;
+            animation: pulse 2s infinite;
+        }
+
+        .control-actions {
+            padding: 20px 24px;
+            display: flex;
+            gap: 12px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .webview-container {
+            height: 600px;
+            background: var(--bg-primary);
+        }
+
         .webview {
             width: 100%;
             height: 100%;
             border: none;
         }
-        
-        .progress-container {
-            padding: 20px;
-            text-align: center;
+
+        /* 返回按钮 */
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 14px;
+            margin-bottom: 20px;
+            transition: color 0.3s ease;
         }
-        
-        .progress-bar {
-            width: 100%;
-            height: 20px;
-            background: #f0f0f0;
-            border-radius: 10px;
-            overflow: hidden;
-            margin: 10px 0;
+
+        .back-btn:hover {
+            color: var(--accent-primary);
         }
-        
-        .progress-fill {
-            height: 100%;
-            background: linear-gradient(90deg, #667eea, #764ba2);
-            width: 0%;
-            transition: width 0.3s ease;
-        }
-        
-        .status-indicator {
-            display: inline-block;
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            margin-right: 8px;
-        }
-        
-        .status-running {
-            background: #27ae60;
-        }
-        
-        .status-stopped {
-            background: #e74c3c;
-        }
-        
-        .status-setting-up {
-            background: #f39c12;
-        }
-        
+
+        /* 隐藏类 */
         .hidden {
-            display: none;
+            display: none !important;
         }
-        
-        .section {
-            margin: 20px;
-        }
-        
-        .section-title {
-            font-size: 18px;
-            font-weight: bold;
-            margin-bottom: 10px;
-            color: #333;
+
+        /* 响应式 */
+        @media (max-width: 768px) {
+            .welcome-title {
+                font-size: 32px;
+            }
+            
+            .features {
+                grid-template-columns: 1fr;
+            }
+            
+            .control-actions {
+                flex-direction: column;
+            }
+            
+            .btn {
+                width: 100%;
+                justify-content: center;
+            }
         }
     </style>
 </head>
 <body>
+    <!-- 主题切换按钮 -->
+    <button class="theme-toggle" id="themeToggle" title="切换主题">
+        <svg id="sunIcon" viewBox="0 0 24 24"><path d="M12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-13.5c.83 0 1.5.67 1.5 1.5s-.67 1.5-1.5 1.5-1.5-.67-1.5-1.5.67-1.5 1.5-1.5zm0 17c-.83 0-1.5.67-1.5 1.5s.67 1.5 1.5 1.5 1.5-.67 1.5-1.5-.67-1.5-1.5-1.5zm-8.5-8.5c0-.83.67-1.5 1.5-1.5s1.5.67 1.5 1.5-.67 1.5-1.5 1.5-1.5-.67-1.5-1.5zm17 0c0 .83-.67 1.5-1.5 1.5s-1.5-.67-1.5-1.5.67-1.5 1.5-1.5 1.5.67 1.5 1.5zM4.81 6.81c.59-.59 1.54-.59 2.12 0 .59.59.59 1.54 0 2.12-.59.59-1.54.59-2.12 0-.59-.59-.59-1.54 0-2.12zm14.38 14.38c-.59.59-1.54.59-2.12 0-.59-.59-.59-1.54 0-2.12.59-.59 1.54-.59 2.12 0 .59.59.59 1.54 0 2.12zm0-14.38c.59.59.59 1.54 0 2.12-.59.59-1.54.59-2.12 0-.59-.59-.59-1.54 0-2.12.59-.59 1.54-.59 2.12 0zM4.81 19.19c-.59-.59-.59-1.54 0-2.12.59-.59 1.54-.59 2.12 0 .59.59.59 1.54 0 2.12-.59.59-1.54.59-2.12 0z"/></svg>
+        <svg id="moonIcon" class="hidden" viewBox="0 0 24 24"><path d="M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9 9-4.03 9-9c0-.46-.04-.92-.1-1.36-.98 1.37-2.58 2.26-4.4 2.26-3.03 0-5.5-2.47-5.5-5.5 0-1.82.89-3.42 2.26-4.4-.44-.06-.9-.1-1.36-.1z"/></svg>
+    </button>
+
     <div class="container">
-        <div class="header">
-            <h1>OpenClaw Desktop</h1>
-            <p>Portable AI Assistant with Sandbox Environment</p>
-        </div>
-        
-        <div class="status-bar">
-            <div>
-                <span id="statusIndicator" class="status-indicator status-stopped"></span>
-                <span id="statusText">Stopped</span>
+        <!-- 欢迎页面 -->
+        <div id="welcomePage" class="welcome-page">
+            <div class="logo">
+                <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
             </div>
-            <div>
-                <span id="portInfo" class="hidden">Port: <span id="portNumber"></span></span>
-            </div>
-        </div>
-        
-        <div class="controls">
-            <button id="startBtn" class="btn" onclick="startServer()">Start Server</button>
-            <button id="stopBtn" class="btn btn-stop" onclick="stopServer()" disabled>Stop Server</button>
-        </div>
-        
-        <div id="setupSection" class="section">
-            <div class="section-title">Setup Progress</div>
-            <div class="progress-container">
-                <div class="progress-bar">
-                    <div id="progressFill" class="progress-fill"></div>
+            
+            <h1 class="welcome-title">OpenClaw 桌面版</h1>
+            <p class="welcome-subtitle">便携式 AI 助手，零配置，开箱即用</p>
+            
+            <div class="features">
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+                    </div>
+                    <h3 class="feature-title">零依赖运行</h3>
+                    <p class="feature-desc">无需预装 Node.js 或其他环境，软件自动下载配置所需的一切，完全隔离运行</p>
                 </div>
-                <div id="progressText">Initializing...</div>
+                
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>
+                    </div>
+                    <h3 class="feature-title">智能对话</h3>
+                    <p class="feature-desc">基于 OpenClaw 强大的 AI 能力，支持多轮对话、代码生成、文档编写等多种任务</p>
+                </div>
+                
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <svg viewBox="0 0 24 24"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"/></svg>
+                    </div>
+                    <h3 class="feature-title">安全可靠</h3>
+                    <p class="feature-desc">所有数据存储在本地沙箱环境中，不读取系统环境变量，保护您的隐私安全</p>
+                </div>
+                
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <svg viewBox="0 0 24 24"><path d="M20 8h-2.81c-.45-.78-1.07-1.45-1.82-1.96l1.15-1.99c.68-.29 1.16-1.01 1.16-1.83 0-1.1-.9-2-2-2-.68 0-1.29.34-1.67.86l-1.16 2.01C12.67 2.96 11.34 2.5 10 2.5s-2.67.46-3.85 1.08L5 1.57C4.62 1.05 4.01.71 3.33.71 2.23.71 1.33 1.61 1.33 2.71c0 .82.48 1.54 1.16 1.83l1.15 1.99c-.75.51-1.37 1.18-1.82 1.96H.99C.44 8.71 0 9.15 0 9.71v2c0 .55.44 1 1 1h1.01c.45.78 1.07 1.45 1.82 1.96l-1.15 1.99c-.68.29-1.16 1.01-1.16 1.83 0 1.1.9 2 2 2 .68 0 1.29-.34 1.67-.86l1.16-2.01c1.18.62 2.51 1.08 3.85 1.08s2.67-.46 3.85-1.08l1.16 2.01c.38.52.99.86 1.67.86 1.1 0 2-.9 2-2 0-.82-.48-1.54-1.16-1.83l-1.15-1.99c.75-.51 1.37-1.18 1.82-1.96h1.01c.55 0 1-.45 1-1v-2c0-.55-.44-1-1-1zM10 15c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5z"/></svg>
+                    </div>
+                    <h3 class="feature-title">一键启动</h3>
+                    <p class="feature-desc">简洁直观的界面设计，自动完成环境配置，让您专注于使用 AI，而非配置环境</p>
+                </div>
+            </div>
+            
+            <button class="btn btn-primary" id="startInstallBtn">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+                开始安装
+            </button>
+        </div>
+
+        <!-- 安装页面 -->
+        <div id="installPage" class="install-page">
+            <a href="#" class="back-btn" id="backToWelcome">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+                返回欢迎页
+            </a>
+            
+            <div class="page-header">
+                <h2 class="page-title">环境配置</h2>
+                <p class="page-desc">正在为您配置 OpenClaw 运行环境，请稍候...</p>
+            </div>
+            
+            <div class="progress-card">
+                <div class="progress-header">
+                    <span class="progress-title">安装进度</span>
+                    <span class="progress-status">
+                        <span class="status-dot" id="statusDot"></span>
+                        <span id="statusText">准备中</span>
+                    </span>
+                </div>
+                <div class="progress-bar-container">
+                    <div class="progress-bar" id="progressBar"></div>
+                </div>
+                <div class="progress-text" id="progressText">等待开始...</div>
+            </div>
+            
+            <div class="terminal-card">
+                <div class="terminal-header">
+                    <span class="terminal-dot red"></span>
+                    <span class="terminal-dot yellow"></span>
+                    <span class="terminal-dot green"></span>
+                    <span class="terminal-title">安装日志</span>
+                </div>
+                <div class="terminal" id="terminal">等待安装开始...</div>
+            </div>
+            
+            <div style="text-align: center; margin-top: 24px;">
+                <button class="btn btn-primary hidden" id="enterAppBtn">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z"/></svg>
+                    进入应用
+                </button>
             </div>
         </div>
-        
-        <div id="terminalSection" class="section">
-            <div class="section-title">Installation Log</div>
-            <div id="terminal" class="terminal">Waiting for setup to begin...</div>
-        </div>
-        
-        <div id="webSection" class="section hidden">
-            <div class="section-title">OpenClaw Web Interface</div>
-            <div class="web-container">
+
+        <!-- 控制面板 -->
+        <div id="controlPanel" class="control-panel">
+            <div class="control-header">
+                <span class="control-title">OpenClaw 控制台</span>
+                <span class="control-status">
+                    <span class="control-status-dot" id="controlStatusDot"></span>
+                    <span id="controlStatusText">已停止</span>
+                </span>
+            </div>
+            
+            <div class="control-actions">
+                <button class="btn btn-primary" id="startServerBtn">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+                    启动服务
+                </button>
+                <button class="btn btn-danger" id="stopServerBtn" disabled>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h12v12H6z"/></svg>
+                    停止服务
+                </button>
+                <button class="btn btn-secondary" id="backToInstallBtn">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/></svg>
+                    重新安装
+                </button>
+            </div>
+            
+            <div class="webview-container">
                 <webview id="webView" class="webview" src=""></webview>
             </div>
         </div>
@@ -209,97 +638,170 @@
     <script>
         const { ipcRenderer } = require('electron');
         
+        // 状态变量
         let setupComplete = false;
         let serverRunning = false;
-        let currentProgress = 0;
+        let currentTheme = 'light';
         
-        // 更新进度显示
+        // DOM 元素
+        const welcomePage = document.getElementById('welcomePage');
+        const installPage = document.getElementById('installPage');
+        const controlPanel = document.getElementById('controlPanel');
+        const terminal = document.getElementById('terminal');
+        const progressBar = document.getElementById('progressBar');
+        const progressText = document.getElementById('progressText');
+        const statusDot = document.getElementById('statusDot');
+        const statusText = document.getElementById('statusText');
+        
+        // 主题切换
+        const themeToggle = document.getElementById('themeToggle');
+        const sunIcon = document.getElementById('sunIcon');
+        const moonIcon = document.getElementById('moonIcon');
+        
+        themeToggle.addEventListener('click', () => {
+            currentTheme = currentTheme === 'light' ? 'dark' : 'light';
+            document.documentElement.setAttribute('data-theme', currentTheme);
+            
+            if (currentTheme === 'dark') {
+                sunIcon.classList.add('hidden');
+                moonIcon.classList.remove('hidden');
+            } else {
+                sunIcon.classList.remove('hidden');
+                moonIcon.classList.add('hidden');
+            }
+            
+            // 保存主题偏好
+            localStorage.setItem('theme', currentTheme);
+        });
+        
+        // 加载保存的主题
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme === 'dark') {
+            currentTheme = 'dark';
+            document.documentElement.setAttribute('data-theme', 'dark');
+            sunIcon.classList.add('hidden');
+            moonIcon.classList.remove('hidden');
+        }
+        
+        // 页面切换函数
+        function showWelcomePage() {
+            welcomePage.style.display = 'block';
+            installPage.classList.remove('active');
+            controlPanel.classList.remove('active');
+        }
+        
+        function showInstallPage() {
+            welcomePage.style.display = 'none';
+            installPage.classList.add('active');
+            controlPanel.classList.remove('active');
+        }
+        
+        function showControlPanel() {
+            welcomePage.style.display = 'none';
+            installPage.classList.remove('active');
+            controlPanel.classList.add('active');
+        }
+        
+        // 更新进度
         function updateProgress(percentage, text) {
-            document.getElementById('progressFill').style.width = percentage + '%';
-            document.getElementById('progressText').textContent = text;
+            progressBar.style.width = percentage + '%';
+            progressText.textContent = text;
+        }
+        
+        // 更新状态
+        function updateStatus(status, text) {
+            statusDot.className = 'status-dot ' + status;
+            statusText.textContent = text;
         }
         
         // 添加终端输出
         function addToTerminal(text) {
-            const terminal = document.getElementById('terminal');
             terminal.textContent += text;
             terminal.scrollTop = terminal.scrollHeight;
         }
         
-        // 更新服务器状态
-        function updateServerStatus(running, port = null) {
+        // 更新控制面板状态
+        function updateControlStatus(running, port = null) {
             serverRunning = running;
-            const statusIndicator = document.getElementById('statusIndicator');
-            const statusText = document.getElementById('statusText');
-            const portInfo = document.getElementById('portInfo');
-            const portNumber = document.getElementById('portNumber');
-            const startBtn = document.getElementById('startBtn');
-            const stopBtn = document.getElementById('stopBtn');
-            const webSection = document.getElementById('webSection');
+            const controlStatusDot = document.getElementById('controlStatusDot');
+            const controlStatusText = document.getElementById('controlStatusText');
+            const startBtn = document.getElementById('startServerBtn');
+            const stopBtn = document.getElementById('stopServerBtn');
             const webView = document.getElementById('webView');
             
             if (running) {
-                statusIndicator.className = 'status-indicator status-running';
-                statusText.textContent = 'Running';
+                controlStatusDot.className = 'control-status-dot running';
+                controlStatusText.textContent = port ? `运行中 (端口 ${port})` : '运行中';
                 startBtn.disabled = true;
                 stopBtn.disabled = false;
-                
                 if (port) {
-                    portNumber.textContent = port;
-                    portInfo.classList.remove('hidden');
-                    webSection.classList.remove('hidden');
-                    webView.src = `http://localhost:${port}`;
+                    webView.src = `http://127.0.0.1:${port}/`;
                 }
             } else {
-                statusIndicator.className = 'status-indicator status-stopped';
-                statusText.textContent = 'Stopped';
-                startBtn.disabled = !setupComplete;
+                controlStatusDot.className = 'control-status-dot';
+                controlStatusText.textContent = '已停止';
+                startBtn.disabled = false;
                 stopBtn.disabled = true;
-                portInfo.classList.add('hidden');
-                webSection.classList.add('hidden');
                 webView.src = '';
             }
         }
         
-        // 启动服务器
-        async function startServer() {
-            if (!setupComplete) return;
-            
+        // 事件监听器
+        document.getElementById('startInstallBtn').addEventListener('click', () => {
+            showInstallPage();
+            // 开始安装
+            ipcRenderer.send('start-setup');
+        });
+        
+        document.getElementById('backToWelcome').addEventListener('click', (e) => {
+            e.preventDefault();
+            showWelcomePage();
+        });
+        
+        document.getElementById('enterAppBtn').addEventListener('click', () => {
+            showControlPanel();
+        });
+        
+        document.getElementById('startServerBtn').addEventListener('click', async () => {
             try {
                 const result = await ipcRenderer.invoke('start-server');
                 if (result.success) {
-                    addToTerminal('\n[INFO] Starting OpenClaw server...\n');
+                    addToTerminal('\n[INFO] 正在启动 OpenClaw 服务...\n');
                 } else {
-                    addToTerminal(`\n[ERROR] Failed to start server: ${result.error}\n`);
+                    addToTerminal(`\n[ERROR] 启动失败: ${result.error}\n`);
                 }
             } catch (error) {
-                addToTerminal(`\n[ERROR] Failed to start server: ${error.message}\n`);
+                addToTerminal(`\n[ERROR] 启动失败: ${error.message}\n`);
             }
-        }
+        });
         
-        // 停止服务器
-        async function stopServer() {
+        document.getElementById('stopServerBtn').addEventListener('click', async () => {
             try {
                 const result = await ipcRenderer.invoke('stop-server');
                 if (result.success) {
-                    addToTerminal('\n[INFO] Stopping OpenClaw server...\n');
+                    addToTerminal('\n[INFO] 正在停止 OpenClaw 服务...\n');
                 } else {
-                    addToTerminal(`\n[ERROR] Failed to stop server: ${result.error}\n`);
+                    addToTerminal(`\n[ERROR] 停止失败: ${result.error}\n`);
                 }
             } catch (error) {
-                addToTerminal(`\n[ERROR] Failed to stop server: ${error.message}\n`);
+                addToTerminal(`\n[ERROR] 停止失败: ${error.message}\n`);
             }
-        }
+        });
+        
+        document.getElementById('backToInstallBtn').addEventListener('click', () => {
+            showInstallPage();
+        });
         
         // IPC 事件监听
         ipcRenderer.on('setup-started', () => {
-            addToTerminal('[SETUP] Starting environment setup...\n');
-            updateProgress(10, 'Setting up private Node.js environment...');
+            addToTerminal('[SETUP] 开始配置环境...\n');
+            updateStatus('active', '配置中');
+            updateProgress(10, '正在配置私有 Node.js 环境...');
         });
         
         ipcRenderer.on('node-setup-complete', () => {
-            addToTerminal('[SETUP] Private Node.js environment ready\n');
-            updateProgress(40, 'Installing OpenClaw packages...');
+            addToTerminal('[SETUP] Node.js 环境配置完成\n');
+            updateProgress(40, '正在安装 OpenClaw...');
         });
         
         ipcRenderer.on('install-progress', (event, data) => {
@@ -311,35 +813,33 @@
         });
         
         ipcRenderer.on('install-complete', () => {
-            addToTerminal('\n[SETUP] OpenClaw installation completed!\n');
-            updateProgress(100, 'Setup complete - ready to start server');
+            addToTerminal('\n[SETUP] OpenClaw 安装完成！\n');
+            updateProgress(100, '安装完成');
+            updateStatus('success', '完成');
             setupComplete = true;
             
-            // 启用启动按钮
-            document.getElementById('startBtn').disabled = false;
-            
-            // 隐藏设置区域
-            document.getElementById('setupSection').classList.add('hidden');
+            document.getElementById('enterAppBtn').classList.remove('hidden');
         });
         
         ipcRenderer.on('setup-error', (event, error) => {
             addToTerminal(`\n[SETUP ERROR] ${error}\n`);
-            updateProgress(0, 'Setup failed - please restart the application');
+            updateProgress(0, '安装失败');
+            updateStatus('error', '失败');
         });
         
         ipcRenderer.on('server-ready', (event, data) => {
-            addToTerminal(`\n[SERVER] OpenClaw server is ready on port ${data.port}\n`);
-            updateServerStatus(true, data.port);
+            addToTerminal(`\n[SERVER] OpenClaw 服务已启动，端口: ${data.port}\n`);
+            updateControlStatus(true, data.port);
         });
         
         ipcRenderer.on('server-stopped', () => {
-            addToTerminal('\n[SERVER] OpenClaw server stopped\n');
-            updateServerStatus(false);
+            addToTerminal('\n[SERVER] OpenClaw 服务已停止\n');
+            updateControlStatus(false);
         });
         
         ipcRenderer.on('server-error', (event, error) => {
             addToTerminal(`\n[SERVER ERROR] ${error}\n`);
-            updateServerStatus(false);
+            updateControlStatus(false);
         });
         
         ipcRenderer.on('openclaw-output', (event, data) => {
@@ -354,9 +854,11 @@
         window.addEventListener('DOMContentLoaded', async () => {
             try {
                 const status = await ipcRenderer.invoke('get-status');
-                updateServerStatus(status.serverRunning);
+                if (status.serverRunning) {
+                    showControlPanel();
+                }
             } catch (error) {
-                console.error('Failed to get initial status:', error);
+                console.error('获取初始状态失败:', error);
             }
         });
     </script>
