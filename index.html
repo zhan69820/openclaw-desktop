@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>OpenClaw Desktop</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+        }
+        
+        .status-bar {
+            padding: 15px 20px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .controls {
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 0 10px;
+            transition: background 0.2s;
+        }
+        
+        .btn:hover {
+            background: #5a6fd8;
+        }
+        
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .btn-stop {
+            background: #e74c3c;
+        }
+        
+        .btn-stop:hover {
+            background: #c0392b;
+        }
+        
+        .terminal {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 20px;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 14px;
+            line-height: 1.4;
+            height: 400px;
+            overflow-y: auto;
+            margin: 20px;
+            border-radius: 4px;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        
+        .web-container {
+            height: 500px;
+            margin: 20px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        
+        .webview {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+        
+        .progress-container {
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background: #f0f0f0;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+        
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        
+        .status-running {
+            background: #27ae60;
+        }
+        
+        .status-stopped {
+            background: #e74c3c;
+        }
+        
+        .status-setting-up {
+            background: #f39c12;
+        }
+        
+        .hidden {
+            display: none;
+        }
+        
+        .section {
+            margin: 20px;
+        }
+        
+        .section-title {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>OpenClaw Desktop</h1>
+            <p>Portable AI Assistant with Sandbox Environment</p>
+        </div>
+        
+        <div class="status-bar">
+            <div>
+                <span id="statusIndicator" class="status-indicator status-stopped"></span>
+                <span id="statusText">Stopped</span>
+            </div>
+            <div>
+                <span id="portInfo" class="hidden">Port: <span id="portNumber"></span></span>
+            </div>
+        </div>
+        
+        <div class="controls">
+            <button id="startBtn" class="btn" onclick="startServer()">Start Server</button>
+            <button id="stopBtn" class="btn btn-stop" onclick="stopServer()" disabled>Stop Server</button>
+        </div>
+        
+        <div id="setupSection" class="section">
+            <div class="section-title">Setup Progress</div>
+            <div class="progress-container">
+                <div class="progress-bar">
+                    <div id="progressFill" class="progress-fill"></div>
+                </div>
+                <div id="progressText">Initializing...</div>
+            </div>
+        </div>
+        
+        <div id="terminalSection" class="section">
+            <div class="section-title">Installation Log</div>
+            <div id="terminal" class="terminal">Waiting for setup to begin...</div>
+        </div>
+        
+        <div id="webSection" class="section hidden">
+            <div class="section-title">OpenClaw Web Interface</div>
+            <div class="web-container">
+                <webview id="webView" class="webview" src=""></webview>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const { ipcRenderer } = require('electron');
+        
+        let setupComplete = false;
+        let serverRunning = false;
+        let currentProgress = 0;
+        
+        // 更新进度显示
+        function updateProgress(percentage, text) {
+            document.getElementById('progressFill').style.width = percentage + '%';
+            document.getElementById('progressText').textContent = text;
+        }
+        
+        // 添加终端输出
+        function addToTerminal(text) {
+            const terminal = document.getElementById('terminal');
+            terminal.textContent += text;
+            terminal.scrollTop = terminal.scrollHeight;
+        }
+        
+        // 更新服务器状态
+        function updateServerStatus(running, port = null) {
+            serverRunning = running;
+            const statusIndicator = document.getElementById('statusIndicator');
+            const statusText = document.getElementById('statusText');
+            const portInfo = document.getElementById('portInfo');
+            const portNumber = document.getElementById('portNumber');
+            const startBtn = document.getElementById('startBtn');
+            const stopBtn = document.getElementById('stopBtn');
+            const webSection = document.getElementById('webSection');
+            const webView = document.getElementById('webView');
+            
+            if (running) {
+                statusIndicator.className = 'status-indicator status-running';
+                statusText.textContent = 'Running';
+                startBtn.disabled = true;
+                stopBtn.disabled = false;
+                
+                if (port) {
+                    portNumber.textContent = port;
+                    portInfo.classList.remove('hidden');
+                    webSection.classList.remove('hidden');
+                    webView.src = `http://localhost:${port}`;
+                }
+            } else {
+                statusIndicator.className = 'status-indicator status-stopped';
+                statusText.textContent = 'Stopped';
+                startBtn.disabled = !setupComplete;
+                stopBtn.disabled = true;
+                portInfo.classList.add('hidden');
+                webSection.classList.add('hidden');
+                webView.src = '';
+            }
+        }
+        
+        // 启动服务器
+        async function startServer() {
+            if (!setupComplete) return;
+            
+            try {
+                const result = await ipcRenderer.invoke('start-server');
+                if (result.success) {
+                    addToTerminal('\n[INFO] Starting OpenClaw server...\n');
+                } else {
+                    addToTerminal(`\n[ERROR] Failed to start server: ${result.error}\n`);
+                }
+            } catch (error) {
+                addToTerminal(`\n[ERROR] Failed to start server: ${error.message}\n`);
+            }
+        }
+        
+        // 停止服务器
+        async function stopServer() {
+            try {
+                const result = await ipcRenderer.invoke('stop-server');
+                if (result.success) {
+                    addToTerminal('\n[INFO] Stopping OpenClaw server...\n');
+                } else {
+                    addToTerminal(`\n[ERROR] Failed to stop server: ${result.error}\n`);
+                }
+            } catch (error) {
+                addToTerminal(`\n[ERROR] Failed to stop server: ${error.message}\n`);
+            }
+        }
+        
+        // IPC 事件监听
+        ipcRenderer.on('setup-started', () => {
+            addToTerminal('[SETUP] Starting environment setup...\n');
+            updateProgress(10, 'Setting up private Node.js environment...');
+        });
+        
+        ipcRenderer.on('node-setup-complete', () => {
+            addToTerminal('[SETUP] Private Node.js environment ready\n');
+            updateProgress(40, 'Installing OpenClaw packages...');
+        });
+        
+        ipcRenderer.on('install-progress', (event, data) => {
+            addToTerminal(data);
+        });
+        
+        ipcRenderer.on('install-error', (event, error) => {
+            addToTerminal(`[ERROR] ${error}\n`);
+        });
+        
+        ipcRenderer.on('install-complete', () => {
+            addToTerminal('\n[SETUP] OpenClaw installation completed!\n');
+            updateProgress(100, 'Setup complete - ready to start server');
+            setupComplete = true;
+            
+            // 启用启动按钮
+            document.getElementById('startBtn').disabled = false;
+            
+            // 隐藏设置区域
+            document.getElementById('setupSection').classList.add('hidden');
+        });
+        
+        ipcRenderer.on('setup-error', (event, error) => {
+            addToTerminal(`\n[SETUP ERROR] ${error}\n`);
+            updateProgress(0, 'Setup failed - please restart the application');
+        });
+        
+        ipcRenderer.on('server-ready', (event, data) => {
+            addToTerminal(`\n[SERVER] OpenClaw server is ready on port ${data.port}\n`);
+            updateServerStatus(true, data.port);
+        });
+        
+        ipcRenderer.on('server-stopped', () => {
+            addToTerminal('\n[SERVER] OpenClaw server stopped\n');
+            updateServerStatus(false);
+        });
+        
+        ipcRenderer.on('server-error', (event, error) => {
+            addToTerminal(`\n[SERVER ERROR] ${error}\n`);
+            updateServerStatus(false);
+        });
+        
+        ipcRenderer.on('openclaw-output', (event, data) => {
+            addToTerminal(data);
+        });
+        
+        ipcRenderer.on('openclaw-error', (event, error) => {
+            addToTerminal(`[OPENCLAW ERROR] ${error}\n`);
+        });
+        
+        // 页面加载完成后检查初始状态
+        window.addEventListener('DOMContentLoaded', async () => {
+            try {
+                const status = await ipcRenderer.invoke('get-status');
+                updateServerStatus(status.serverRunning);
+            } catch (error) {
+                console.error('Failed to get initial status:', error);
+            }
+        });
+    </script>
+</body>
+</html>
