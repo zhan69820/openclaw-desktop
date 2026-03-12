@@ -274,7 +274,9 @@ function createWindow() {
         webPreferences: {
             nodeIntegration: true,
             contextIsolation: false,
-            webviewTag: true
+            webviewTag: true,
+            webSecurity: false,
+            allowRunningInsecureContent: true
         },
         titleBarStyle: 'hiddenInset',
         show: false,
